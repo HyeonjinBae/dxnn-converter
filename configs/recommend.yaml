@@ -1,0 +1,44 @@
+# 추천 설정 (dxnn 포맷별). 실측(sweep + NPU 평가)으로 정한 값.
+# 설정 병합 순서: defaults.yaml < recommend.yaml(목표 포맷) < presets/<model>.yaml < --config < --set < CLI 옵션
+# `dxconv convert` 는 이 값으로 한 번만 컴파일한다 (추천 모드). 더 맞추려면 `dxconv sweep` (정밀 모드).
+# settings_no_data: 이미지 입력 없이 기본 캘리브레이션 사진(일반 사진)을 쓸 때 settings 위에 얹는 값
+# 갱신: dxconv recommend update <sweep 결과 폴더...>  /  확인: dxconv recommend show
+formats:
+  9:
+    settings:
+      export:
+        opset: 17
+        simplify: true
+      compile:
+        opt_level: 1
+        aggressive_partitioning: false
+        calibration_method: minmax
+        calibration_num: 50
+    settings_no_data:
+      compile:
+        calibration_method: ema
+        calibration_num: 100
+        calib_sampling: random
+    evidence:
+    - 'opset 11~21 x simplify: dxnn 의 NPU 데이터가 바이트 단위로 같음 (정확도·속도 영향 없음)'
+    - 'opt_level 1 vs 0: 정확도 같음(±0.01%p), FPS +20% (DX-M1, run_model -b 203.6 vs 167.0)'
+    - 'aggressive_partitioning off vs on: 정확도 같음, FPS +7% (203.6 vs 190.5)'
+    - '캘리브레이션 방식 x 장수: 차이 0.3~1.8%p, 모델·데이터마다 1위가 다름 (Fire ema·100, Falldown minmax·50)'
+    - 'YOLO26 n/s/m/l: 모두 opt1 + aggressive off 가 최대 FPS, CPU 작업은 후처리 1개'
+    - '자기 데이터 캘리브(2개 모델, 이미지만 바꿔 3~4회 반복 평균): minmax·50 이 ema·100 보다 0.4~0.5%p 좋음 (Falldown −0.25 vs −0.72, Fire −1.37 vs −1.77) → settings'
+    - '일반 사진(coco128) 캘리브: ema·100 은 자기 데이터와 같음 (Falldown −0.72 vs −0.72, Fire −1.76 vs −1.77), minmax·50 은 0.2~0.6%p 손해 → settings_no_data'
+    - '튀는 이미지 20% 섞은 캘리브: 최종 평가 차이 0.05~0.16%p (영향 작음)'
+    - '2026-11-25 YOLO26s 탐지 모델(2클래스), DX-M1: 정밀 모드 선택 ema/100, opt1, agg off / 평가 600장 PT 대비 mAP50-95 -1.01%p, 203.4 FPS. 추천 모드도 같은 결과'
+  8:
+    settings:
+      export:
+        opset: 17
+        simplify: true
+      compile:
+        opt_level: 1
+        aggressive_partitioning: false
+        calibration_method: minmax
+        calibration_num: 100
+    evidence:
+    - 'opset/simplify/opt_level/aggressive 경향은 v9 와 같음 (opt1·agg off 205.5 FPS)'
+    - '2026-11-25 YOLO26s 탐지 모델(2클래스), DX-M1: 정밀 모드 선택 minmax/100 / 평가 600장 PT 대비 mAP50-95 -1.53%p, 205.5 FPS. 캘리브레이션 차이 0.2~0.6%p'

@@ -1,0 +1,17 @@
+# 데이터셋 분할 설정 예시 (고정 목록을 직접 관리할 때만 필요).
+# 보통은 이 파일 없이 --images <이미지 폴더> --labels <라벨 폴더> 로 주면 dxconv 가 비율대로 자동 분할한다.
+#
+# 쓰는 법: 이 파일을 configs/datasets/<model>.local.yaml 로 복사해 <ROOT> 를 실제 경로로 바꾼다 (*.local.yaml 은 git 제외).
+#   dxconv dataset check <model>                 # 분할 검증 (파일 존재, 중첩, SHA-256 겹침)
+#   dxconv convert --pt <model>.pt               # --images/--calib-dir 가 없으면 이 설정을 사용
+#
+# 목록 파일: 한 줄에 하나, images_dir 기준 파일 이름. 상대 경로는 이 YAML 위치 기준.
+name: my_model
+images_dir: <ROOT>/images
+labels_dir: <ROOT>/labels           # YOLO 라벨 (<이미지 stem>.txt)
+calibration:                        # compile.calibration_num → 목록 (작은 N 이 큰 N 의 앞부분, dxconv 가 letterbox)
+  50: <ROOT>/splits/calibration_50.txt
+  100: <ROOT>/splits/calibration_100.txt
+  200: <ROOT>/splits/calibration_200.txt
+tuning: <ROOT>/splits/tuning.txt          # sweep 최적값 선택
+evaluation: <ROOT>/splits/evaluation.txt  # 최종 보고 수치 (선택에는 쓰지 않음)

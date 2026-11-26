@@ -1,0 +1,6 @@
+# test_config_merge 용 사용자 설정
+compile:
+  calibration_num: 77
+  opt_level: 0
+export:
+  opset: 13

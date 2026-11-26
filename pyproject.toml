@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dxconv"
+version = "0.1.0"
+description = "DEEPX NPU용 Ultralytics YOLO 모델 변환 자동화 CLI (PT -> ONNX -> DXNN)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.9",
+    "rich>=13",
+    "pydantic>=2",
+    "pyyaml>=6",
+    "onnx>=1.14",
+    "onnxslim>=0.1.82",   # ultralytics export(simplify) 가 실행 중 자동 설치하지 않도록 미리 (오프라인 PC 대비)
+    "ultralytics>=8.3",
+    "pillow>=9",
+    "packaging>=21",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.4"]
+
+[project.scripts]
+dxconv = "dxconv.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["dxconv*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: 실제 DX-COM / ultralytics를 호출하는 테스트 (기본 실행 제외, -m integration 으로 실행)",
+]
+addopts = "-m 'not integration'"
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["01_Fire"]
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "ANN001", "ANN201"]
+ignore = ["B008"]  # typer.Option 기본값 패턴
+
+[tool.ruff.lint.pycodestyle]
+# 한글은 표시 폭 2로 계산되므로 lint 한도만 여유 있게 둔다
+max-line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN001", "ANN201"]

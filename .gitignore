@@ -1,0 +1,29 @@
+# dxconv 실행 결과 / 모델 산출물
+runs/
+*.onnx
+*.dxnn
+*.pt
+# 원격 장비 접속 정보 / 데이터셋 경로 (개인 설정)
+configs/remote.yaml
+configs/datasets/*.local.yaml
+# 정밀 모드 --save-preset 결과 (모델·데이터마다 다름, 각자 PC 에만)
+configs/presets/*.yaml
+
+# 기존 실험 자료 사본 (읽기 전용, 저장소에 포함하지 않음)
+/01_Fire/
+# 내부 작업 기록 (실험 기록, 장비 기록, 문의 사항: 로컬 보관)
+/notes/
+# 설정 백업 (recommend update, --save-preset)
+*.bak
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/

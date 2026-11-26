@@ -1,0 +1,15 @@
+# sweep 전체 탐색 공간 (A → B → C). 사용: dxconv sweep ... --space full_space.yaml
+# 단계별로 진행하며, 이전 단계의 최적값을 고정하고 다음 단계를 탐색한다.
+stages:
+  A:   # 컴파일 성공 + PT/ONNX/DXNN 출력 일치
+    export.opset: [13, 17, 19]   # DX-COM 지원 11~21. 실측상 결과 동일
+    export.simplify: [true, false]
+  B:   # mAP 기준
+    # iqr 은 허용값이지만 기본 탐색에서 뺀다: DX-COM 2.5.0 일반 컴파일에서 iqr 결과가 minmax 와
+    # 바이트 단위로 같았다 (실측).
+    compile.calibration_method: [ema, minmax]
+    compile.calibration_num: [50, 100, 200]
+  C:   # FPS 기준
+    compile.opt_level: [0, 1]
+    compile.aggressive_partitioning: [true, false]
+objective: "PT 대비 mAP 하락 <= 1%p 중 FPS 최대"

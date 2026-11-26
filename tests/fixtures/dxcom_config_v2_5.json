@@ -1,0 +1,51 @@
+{
+  "inputs": {
+    "images": [
+      1,
+      3,
+      640,
+      640
+    ]
+  },
+  "calibration_method": "minmax",
+  "calibration_num": 50,
+  "default_loader": {
+    "dataset_path": "<CALIB_DIR>",
+    "file_extensions": [
+      "BMP",
+      "JPEG",
+      "JPG",
+      "PNG",
+      "bmp",
+      "jpeg",
+      "jpg",
+      "png"
+    ],
+    "preprocessings": [
+      {
+        "convertColor": {
+          "form": "BGR2RGB"
+        }
+      },
+      {
+        "div": {
+          "x": 255.0
+        }
+      },
+      {
+        "transpose": {
+          "axis": [
+            2,
+            0,
+            1
+          ]
+        }
+      },
+      {
+        "expandDim": {
+          "axis": 0
+        }
+      }
+    ]
+  }
+}

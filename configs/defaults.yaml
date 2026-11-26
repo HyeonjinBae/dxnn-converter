@@ -1,0 +1,45 @@
+# dxconv 기본 설정 (최하위 우선순위)
+# 우선순위: CLI 인수 > --config 파일 > presets/<model>.yaml > defaults.yaml
+export:
+  opset: 17
+  simplify: true
+  dynamic: false
+  half: false
+  nms: false
+  end2end: true
+  max_det: 300
+  imgsz: 640
+  batch: 1
+compile:
+  dxcom_version: "2.5.0"
+  opt_level: 1
+  aggressive_partitioning: true
+  calibration_method: ema      # minmax | ema | iqr (dxcom --help 2.5.0 observer 목록)
+  calibration_num: 100
+  calib_seed: 0
+  calib_repeat: 0              # 캘리브레이션 사진 묶음 번호 (0: 분할 목록 그대로, 1+: 풀에서 무작위 추출)
+  calib_sampling: stratified   # stratified: calib-dir 하위 폴더(클래스) 비율대로 | random
+  # 이미지 입력(--images / --calib-dir / --dataset)이 없을 때 받아 쓰는 기본 캘리브레이션 사진 (일반 사진 128장, 약 7MB)
+  default_calib_url: "https://github.com/ultralytics/assets/releases/download/v0.0.0/coco128.zip"
+  docker_image: "dxcom:{version}"  # 로컬 dxcom 이 없거나 버전이 다르면 이 이미지 ({version}=dxcom_version, null: docker 미사용)
+  export_html: false           # true: dxcom --export_html, 결과 HTML 을 run 폴더에 복사
+  preprocess:                  # Ultralytics 학습 전처리와 반드시 일치
+    letterbox_mode: host       # host: Ultralytics LetterBox 로 미리 처리 | dxcom | none
+    pad_value: 114
+    color: RGB                 # BGR→RGB 변환
+    scale: 255.0               # /255
+    layout: NCHW
+postprocess:                   # 배포 후처리. 평가에서는 고정 conf P/R 에만 사용
+  conf: 0.25
+  iou: 0.7
+evaluate:                      # mAP 평가 (PT/ONNX/DXNN 공통)
+  conf: 0.001                  # mAP 계산용 최소 점수 (postprocess.conf 와 분리)
+  fps_seconds: 10              # NPU FPS 측정 시간(초), 원격 평가
+split:                         # --images/--labels 폴더 자동 분할 (데이터셋 설정 파일이 없을 때)
+  seed: 0
+  calibration_ratio: 0.2       # 캘리브레이션 풀 = 전체 × 0.2 (최대 calibration_max)
+  calibration_max: 200
+  calibration_fractions: [0.25, 0.5, 1.0]   # 풀 대비 후보 (1000장 → 50/100/200, 중첩). sweep B 의 calibration_num
+  tuning_ratio: 0.2            # 튜닝(조합 선택) = 전체 × 0.2 (최대 tuning_max)
+  tuning_max: 500
+  evaluation_min: 100          # 평가(나머지)가 이보다 적으면 경고

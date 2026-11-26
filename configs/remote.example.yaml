@@ -1,0 +1,33 @@
+# NPU 장비 접속 설정 예시
+#
+# 사용법
+#   1. 이 파일을 configs/remote.yaml 로 복사 (remote.yaml 은 git 에서 제외됨. 장비 정보는 이 파일에만 적는다)
+#        cp configs/remote.example.yaml configs/remote.yaml
+#   2. 아래 값 중 hostname, username 을 장비에 맞게 고치고, 나머지는 필요할 때만 적는다
+#   3. SSH 키 등록 (비밀번호 접속은 지원하지 않음)
+#        ssh-keygen -t ed25519                      # 키가 없을 때만
+#        ssh-copy-id -p <port> <username>@<hostname>
+#   4. 점검: dxconv remote check --host <장비 이름>
+#
+# 장비 쪽 준비물: DX-RT (dxrt-cli, run_model) + dx_engine 이 있는 python (dx-all-suite 설치 시 함께 설치됨)
+# 자세한 설명: docs/paths.md
+
+hosts:
+  npu1:                         # 장비 이름. 명령에서 --remote npu1 / --host npu1 로 사용 (영문·숫자, 자유롭게)
+    # ---- 필수 ----
+    hostname: 192.168.0.10      # 장비 IP 또는 호스트 이름 (예: 192.168.0.10, npu1.lab.local)
+    username: user              # 장비 로그인 계정 (예: ssh user@192.168.0.10 으로 접속할 때의 user)
+
+    # ---- 선택 (적지 않으면 기본값) ----
+    # port: 22                  # SSH 포트. 공유기 포트 포워딩 등으로 22 가 아니면 적는다
+    # key_filename: ~/.ssh/id_ed25519
+    #                           # SSH 개인 키 (이 PC 기준 경로). 적지 않으면 ssh 기본 키와 ~/.ssh/config 사용
+    # workdir: dxconv_agent     # 장비 작업 폴더. 상대 경로면 장비 계정 홈 기준 (= ~/dxconv_agent)
+    #                           #   평가 스크립트, dxnn, 평가 이미지, 결과가 여기에 쌓인다
+    # python: auto              # dx_engine·OpenCV·numpy 가 있는 장비 python.
+    #                           #   auto: python3 와 ~/dx-all-suite*/dx-runtime/venv-dx-runtime/bin/python 등에서
+    #                           #   dx_engine 을 import 할 수 있는 것을 찾는다 (여러 개면 이 PC 와 OpenCV 버전이 같은 것)
+    #                           #   직접 지정 예: /home/user/dx-all-suite/dx-runtime/venv-dx-runtime/bin/python
+    # dxrt_bin: /usr/local/bin  # dxrt-cli / run_model 이 있는 폴더. 장비에서 `which dxrt-cli` 가 안 나올 때만
+    # lock_file: /tmp/dxconv_eval.lock
+    #                           # 여러 사람이 같은 장비로 측정할 때 한 번에 하나씩 하도록 거는 잠금 파일

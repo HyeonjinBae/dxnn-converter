@@ -1,0 +1,14 @@
+# sweep(정밀 모드) 기본 탐색 공간
+#
+# 실측 결과 (DX-M1, YOLO26 n/s/m/l):
+#   - opset 11~21, simplify: dxnn NPU 데이터가 바이트 단위로 같음 → 추천값(17, true) 고정
+#   - opt_level 1 + aggressive off: 모든 크기에서 최고 FPS, 정확도 동일 → 추천값 고정
+#   - 정확도 차이는 캘리브레이션에서만 발생, 같은 설정도 사진 선택에 따라 0.2~1%p 흔들림
+# → 캘리브레이션 방식만 탐색하고, 방식마다 사진 묶음 3개(calib_repeat 1~3)를 평균 내 고른다.
+#   A/C 단계까지 탐색하려면 --space full_space.yaml
+stages:
+  B:
+    compile.calibration_method: [ema, minmax]
+    compile.calibration_num: [100]       # 자동 분할 후보에 맞춰 조정 (예: 300장 → 60)
+    compile.calib_repeat: [1, 2, 3]       # 캘리브레이션 풀에서 뽑는 사진 묶음
+objective: "PT 대비 mAP 하락 <= 1%p 중 FPS 최대"
