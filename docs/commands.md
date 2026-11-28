@@ -4,13 +4,13 @@
 
 | 명령 | 하는 일 | 주로 쓰는 때 |
 |---|---|---|
-| `convert` | pt → ONNX → dxnn 한 번에 (추천 모드) | **평소 변환** |
-| `sweep` | 설정 조합을 단계별로 탐색해 최적값 선택 (정밀 모드) | 모델별로 더 맞추고 싶을 때 (라벨 필요) |
+| `convert` | pt → ONNX → dxnn 한 번에 | **평소 변환** |
+| `sweep` | 설정 조합을 여러 번 변환·평가해 비교 (실험용) | 추천값 재검증 (기본 사용에는 불필요) |
 | `env` | DX-COM / DX-RT 설치 상태 확인 | 설치 직후, 문제 생겼을 때 |
 | `remote setup` / `remote check` | NPU 장비 연결 준비 / 점검 | 장비를 처음 연결할 때 |
 | `dataset split` / `dataset check` | 데이터 분할 미리 보기 / 데이터셋 점검 | 변환 전에 데이터 확인 |
 | `baseline` | PC에서 PT / FP32 ONNX 정확도 측정 | NPU 결과와 비교할 기준값이 필요할 때 |
-| `recommend show` / `recommend update` | 추천값 확인 / 정밀 모드 결과로 추천값 갱신 | 추천값 관리 |
+| `recommend show` / `recommend update` | 추천값 확인 / `sweep` 결과로 추천값 갱신 | 추천값 관리 |
 | `export` / `compile` | 변환을 단계별로 따로 실행 | 디버깅, ONNX가 이미 있을 때 |
 
 공통 옵션
@@ -27,7 +27,7 @@
 
 ---
 
-## 1. `convert` (추천 모드)
+## 1. `convert`
 
 ```bash
 dxconv convert --pt <pt 파일> [입력 옵션] [장비 옵션] [설정 옵션]
@@ -116,49 +116,37 @@ dxconv convert --pt fire.pt --images ./data/images --labels ./data/labels --remo
 
 ---
 
-## 2. `sweep` (정밀 모드)
+## 2. `sweep` (설정 비교 실험, 실험용)
+
+기본 사용에는 필요 없음. 6개 모델(ALVIS Fire·Falldown, COCO YOLO26 n/s/m/l)에서 추천값 1회 변환과 차이 0~0.5%p로 추천값이 같거나 좋았음. 새 DX-COM 버전이나 새 종류의 모델에서 추천값을 재검증할 때 사용
 
 ```bash
 dxconv sweep --pt <pt 파일> --images <폴더> --labels <폴더> --remote <장비 이름> [옵션]
 ```
 
-라벨 필수 (조합을 정확도로 비교). 모델당 Linux/WSL2(x86) 약 11분, Mac(docker) 약 17분
-
-기본 탐색 (`configs/sweep/default_space.yaml`)
-
-| 탐색 | 조합 | 선택 기준 |
-|---|---|---|
-| 캘리브레이션 방식 | ema / minmax × 사진 묶음 3개 (각 100장) = 6회 | 방식별 튜닝 mAP50-95 평균 최대 → 그 방식 중 튜닝 최대 묶음 |
-
-opset 17, simplify, opt_level 1, aggressive 끔은 추천값 고정 (실측상 결과 동일 또는 항상 최고)
-
-전체 탐색 (`--space full_space.yaml`, 약 30~35분)
-
-| 단계 | 탐색 | 선택 기준 |
-|---|---|---|
-| A | opset × simplify | 컴파일 성공 + 설정 일치 + ONNX 출력이 PT와 같음 |
-| B | 캘리브레이션 방식 × 장수 | 튜닝 분할 mAP50-95 최대 |
-| C | opt_level × aggressive | `--objective` 기준 (기본: PT 대비 하락 1%p 이내 중 FPS 최대) |
+- 라벨 필수 (조합을 정확도로 비교), 모델당 약 11~30분 (모델 크기에 따라)
+- 기본 비교 (`configs/sweep/default_space.yaml`) : ema / minmax × 사진 묶음 3개 (각 100장) = 6회 변환 → 방식별 Tuning mAP50-95 평균이 높은 방식 → 그 방식 중 Tuning 최대 묶음
+- 전체 비교 (`--space configs/sweep/full_space.yaml`) : A opset × simplify → B 양자화 방식 × 장수 → C opt_level × aggressive
+- 고른 조합은 Evaluation 분할로 다시 측정해 `summary.md`에 PT와 함께 기록
 
 | 옵션 | 뜻 |
 |---|---|
-| `--objective "<식>"` | 선택 기준. 예: `"PT 대비 mAP 하락 <= 1%p 중 FPS 최대"`, `"FPS >= 20*15 중 mAP 최대"` |
+| `--save-preset` | 고른 값을 `configs/presets/<model>.yaml`로 저장 → 이후 `convert`에 자동 적용 |
+| `--objective "<식>"` | 전체 비교 C 단계 선택 기준. 예: `"PT 대비 mAP 하락 <= 1%p 중 FPS 최대"`, `"FPS >= 20*15 중 mAP 최대"` |
 | `--strict-objective` | 조건을 만족하는 조합이 없으면 멈춤 (기본: 하락이 가장 작은 조합으로 대체 선택) |
-| `--save-preset` | 선택값을 `configs/presets/<model>.yaml`로 저장 → 이후 `convert`에 자동 적용 |
-| `--space full_space.yaml` | A/B/C 전체 탐색 |
-| `--stage A\|B\|C` | 한 단계만 실행 (전체 탐색일 때) |
+| `--space <yaml>` | 비교할 조합 파일 (기본 `configs/sweep/default_space.yaml`) |
+| `--stage A\|B\|C` | 한 단계만 실행 (전체 비교일 때) |
 | `--compile-only` | 장비 없이 컴파일만. 평가는 `sweep import-eval`로 입력 |
 | `--retry-failed` | 실패했던 조합 다시 컴파일 |
-| `--space <yaml>` | 탐색 공간 변경 (기본 `configs/sweep/default_space.yaml`) |
 
 ```bash
-caffeinate -i dxconv sweep --pt fire.pt --images ./data/images --labels ./data/labels --remote npu1 --save-preset
-dxconv sweep status --model fire                    # 진행 상황, 결과 표 다시 보기
+dxconv sweep --pt fire.pt --images ./data/images --labels ./data/labels --remote npu1
+dxconv sweep status --model fire
 ```
 
+- `sweep status` : 진행 상황, 결과 표 다시 보기
 - 중간에 멈춰도 같은 명령을 다시 실행하면 이어서 진행 (같은 설정은 다시 컴파일하지 않음)
-- 결과: `<out>/sweep/<model>/summary.md`, `sweep.db`
-- macOS는 `caffeinate -i`를 앞에 붙여 잠자기 방지
+- 결과 : `<out>/sweep/<model>/summary.md`, `sweep.db`
 
 ---
 
@@ -169,17 +157,22 @@ dxconv env            # 표로 출력
 dxconv env --json     # JSON
 ```
 
-DX-COM 버전과 출처(local 설치 / docker 이미지), DX-RT 버전, 선택될 DX-COM 버전 표시
+DX-COM 버전과 출처(pip 설치 / PATH), DX-RT 버전, 선택될 DX-COM 버전 표시
 
 ---
 
 ## 4. `remote`
 
 ```bash
-cp configs/remote.example.yaml configs/remote.yaml    # 장비 주소, 포트, 사용자, SSH 키 입력
-dxconv remote setup --host npu1                        # 장비에 평가 스크립트 복사 + 점검
-dxconv remote check --host npu1                        # DX-RT, 드라이버, 펌웨어, 읽을 수 있는 dxnn 포맷
+cp configs/remote.example.yaml configs/remote.yaml
+dxconv remote setup --host npu1
+dxconv remote check --host npu1
 ```
+
+- `remote.yaml` : 장비 IP(`hostname`), 계정(`username`), SSH 포트(`port`) 입력
+- `setup` : 장비에 평가 스크립트 복사 (작업 폴더 자동 생성)
+- `check` : DX-RT, 드라이버, 펌웨어, 읽을 수 있는 dxnn 포맷, 평가 python, 디스크 여유
+- 접속 실패 시 원인별 안내 (시간 초과 → 주소·포트·네트워크, `Permission denied` → `ssh-copy-id`)
 
 `--host`는 `configs/remote.yaml`에 적은 장비 이름. 이후 `--remote npu1`로 사용
 
@@ -211,7 +204,7 @@ NPU 없이 PC에서 PT와 FP32 ONNX 정확도 측정. 결과: `<out>/baseline/<m
 
 ```bash
 dxconv recommend show                                              # 포맷별 추천값과 근거
-dxconv recommend update runs/sweep/model1 runs/sweep/model2         # 정밀 모드 결과로 갱신 (키별 최다 선택값)
+dxconv recommend update runs/sweep/model1 runs/sweep/model2         # sweep 결과로 갱신 (키별 최다 선택값)
 ```
 
 ---

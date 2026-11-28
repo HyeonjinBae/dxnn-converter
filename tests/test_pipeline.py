@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import stat
-import sys
 from pathlib import Path
 
 import pytest
@@ -53,24 +52,6 @@ while True:  # payload_offset 를 헤더 길이에 맞춘다 (자릿수가 바�
 if "--export_html" in args:
     (out / "m_summary.html").write_text("<html></html>")
 """
-
-# docker run ... <image> dxcom <args> 를 흉내 낸다: 인자를 기록하고 가짜 dxcom 처럼 동작
-FAKE_DOCKER = """#!/usr/bin/env python3
-import sys, pathlib, json, os
-args = sys.argv[1:]
-log = pathlib.Path(os.environ["FAKE_DOCKER_LOG"])
-with log.open("a") as f:
-    f.write(json.dumps(args) + "\\n")
-if args[:1] != ["run"]:
-    sys.exit(0)
-i = args.index("dxcom")
-dx = args[i + 1:]
-out = pathlib.Path(dx[dx.index("-o") + 1])
-out.mkdir(parents=True, exist_ok=True)
-print("npu subgraphs: 2")
-(out / "m.dxnn").write_bytes(b"DOCKER")
-"""
-
 
 @pytest.fixture
 def fake_dxcom(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -161,44 +142,6 @@ def test_compile_export_html(tmp_path: Path, fake_dxcom: Path):
     assert rep["outputs"]["html_reports"] == [str(run / "m_summary.html")]
 
 
-@pytest.mark.parametrize("mode", ["host", "none"])
-def test_compile_via_docker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str):
-    bindir = tmp_path / "bin"
-    bindir.mkdir()
-    exe = bindir / "docker"
-    exe.write_text(FAKE_DOCKER)
-    exe.chmod(exe.stat().st_mode | stat.S_IEXEC)
-    pybin = Path(os.path.realpath(sys.executable)).parent
-    monkeypatch.setenv("PATH", f"{bindir}{os.pathsep}{pybin}")
-    dlog = tmp_path / "docker.log"
-    monkeypatch.setenv("FAKE_DOCKER_LOG", str(dlog))
-
-    make_images(tmp_path / "calib", 30)
-    onnx = make_onnx(tmp_path / "in.onnx")
-    res = runner.invoke(app, ["compile", "--onnx", str(onnx), "--model", "fire",
-                              "--calib-dir", str(tmp_path / "calib"), "--calib-num", "20",
-                              "--set", f"compile.preprocess.letterbox_mode={mode}",
-                              "--out", str(tmp_path / "runs")])
-    assert res.exit_code == 0, res.output
-    run = next((tmp_path / "runs" / "compile").iterdir())
-    assert (run / "fire.dxnn").read_bytes() == b"DOCKER"
-    rep = json.loads((run / "report.json").read_text())
-    assert rep["dxcom_runner"] == "docker:dxcom:2.5.0"
-    calls = [json.loads(ln) for ln in dlog.read_text().splitlines()]
-    run_call = next(c for c in calls if c[:1] == ["run"])
-    assert "dxcom:2.5.0" in run_call
-    mounts = {run_call[i + 1] for i, a in enumerate(run_call) if a == "-v"}
-    calib_mount = f"{(tmp_path / 'calib').resolve()}:{(tmp_path / 'calib').resolve()}"
-    if mode == "host":
-        # letterbox 된 PNG 가 run 폴더에 있으므로 원본 폴더는 마운트하지 않는다
-        assert calib_mount not in mounts
-    else:
-        # 심볼릭 링크 대상(캘리브레이션 원본) 폴더가 같은 경로로 마운트돼야 함
-        assert calib_mount in mounts
-    assert any(m.startswith(str(run.resolve()) + ":") or str(run.resolve()).startswith(m.split(":")[0])
-               for m in mounts)
-
-
 def test_compile_report_class_counts(tmp_path: Path, fake_dxcom: Path):
     make_images(tmp_path / "calib" / "fire", 30)
     make_images(tmp_path / "calib" / "normal", 30)
@@ -282,3 +225,11 @@ def test_real_convert(tmp_path: Path):
     res = runner.invoke(app, ["convert", "--pt", pt, "--model", "fire", "--calib-dir", calib,
                               "--out", str(tmp_path / "runs")])
     assert res.exit_code == 0, res.output
+
+
+def test_status_text_strips_progress_bar():
+    from dxconv.compile.compiler import _status_text
+
+    assert _status_text("NPU encode:   0%|   | 0/1\rNPU encode: 100%|###| 1/1\n") == "NPU encode: 100%|###| 1/1"
+    assert _status_text("\x1b[33m[WARNING] x\x1b[0m\n") == "[WARNING] x"
+    assert _status_text("\r\n") == ""

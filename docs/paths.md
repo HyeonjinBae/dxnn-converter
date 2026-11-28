@@ -80,7 +80,7 @@ hosts:
   npu1:                    # 장비 이름 (명령에서 --remote npu1)
     hostname: 192.168.0.10
     username: user
-    # port: 22
+    port: 22
     # key_filename: ~/.ssh/id_ed25519
     # workdir: dxconv_agent
     # python: auto
@@ -93,8 +93,8 @@ hosts:
 | (장비 이름) | ✓ | — | 아무 이름 (영문·숫자) | 명령에서 `--remote <이름>`으로 씀 |
 | `hostname` | ✓ | — | 장비 IP 또는 호스트 이름 | 장비에서 `hostname -I` |
 | `username` | ✓ | — | 장비 로그인 계정 | 장비에서 `whoami` |
-| `port` | | 22 | SSH 포트 | 평소 `ssh -p <포트>`로 접속하면 그 번호 |
-| `key_filename` | | ssh 기본 키 | **이 PC의** SSH 개인 키 경로 | `ls ~/.ssh/` → `id_ed25519` 등 (`.pub` 아닌 쪽) |
+| `port` | 22가 아니면 ✓ | 22 | SSH 포트 | 평소 `ssh -p <포트>`로 접속하면 그 번호. 틀리면 `Operation timed out` |
+| `key_filename` | | ssh 기본 키 | **이 PC의** SSH 개인 키 파일 위치 (키 내용 아님) | 키를 기본 위치가 아닌 곳에 만든 경우에만. 보통 적지 않음 |
 | `workdir` | | `dxconv_agent` | 장비 작업 폴더. 상대 경로면 장비 홈 기준 | 보통 그대로 둠. 디스크가 부족하면 큰 디스크 경로 |
 | `python` | | `auto` | dx_engine이 있는 **장비의** python 경로 | 장비에서 `ls ~/dx-all-suite*/dx-runtime/venv-dx-runtime/bin/python` |
 | `dxrt_bin` | | 없음 | **장비의** `dxrt-cli`, `run_model`이 있는 폴더 | 장비에서 `which dxrt-cli`가 안 나올 때만. `find / -name dxrt-cli 2>/dev/null` |
@@ -110,14 +110,22 @@ hosts:
 
 ### 장비 연결 순서
 
+입력을 기다리는 명령이 있으니 한 줄씩 실행
+
 ```bash
-ssh-keygen -t ed25519                                   # 이 PC에 키가 없을 때만 (엔터 3번)
-ssh-copy-id -p <port> <username>@<hostname>             # 장비 비밀번호 1번 입력 (일반 터미널에서. 아래 주의)
-ssh -p <port> <username>@<hostname> echo ok             # 비밀번호 없이 ok 가 나와야 함
-dxconv remote setup --host npu1                         # 장비 작업 폴더에 평가 스크립트 복사
-dxconv remote check --host npu1                         # DX-RT, 드라이버, 펌웨어, python, 디스크 점검
+ls ~/.ssh/id_ed25519.pub
+ssh-keygen -t ed25519
+ssh-copy-id -p <port> <username>@<hostname>
+ssh -p <port> <username>@<hostname> echo ok
+dxconv remote setup --host npu1
+dxconv remote check --host npu1
 ```
 
+- `ls` : 파일이 보이면 키가 이미 있으니 `ssh-keygen`은 건너뜀 (없을 때만 실행, 엔터 3번)
+- `ssh-copy-id` : `yes` 입력 후 장비 비밀번호 1번
+- `ssh ... echo ok` : 비밀번호 없이 `ok`가 나오면 성공
+- `remote setup` : 장비 작업 폴더에 평가 스크립트 복사 / `remote check` : DX-RT, 드라이버, 펌웨어, python, 디스크 점검
+- 여러 줄을 한꺼번에 붙여넣으면 다음 줄이 질문의 답으로 들어감 (예: `ssh-keygen`의 파일 이름 질문에 다음 명령이 들어가 키 파일이 현재 폴더에 생김 → 그 파일은 지우고 다시)
 - `ssh-copy-id`는 비밀번호를 입력할 터미널이 필요함. Claude Code 같은 도구 안의 `!` 명령으로 실행하면 `ssh_askpass: No such file`로 실패 → 일반 터미널 창에서 실행
 
 `remote check`에서 확인할 것: 자동으로 고른 평가 python 경로와 작업 폴더, `DX-RT 3.5.0`(v9) 또는 `3.1.0` 이상(v8), python의 `dx_engine` 버전, OpenCV 버전 (PC와 다르면 경고)
@@ -155,10 +163,10 @@ export DXCONV_CACHE_DIR=/data/dxconv_cache
 | 무엇 | 위치 |
 |---|---|
 | 변환 결과 (`convert`) | `<--out>/convert/<모델 이름>_<날짜_시각>/<모델 이름>.dxnn` |
-| 정밀 모드 (`sweep`) | `<--out>/sweep/<모델 이름>/` (`summary.md`, `sweep.db`, `combos/`) |
+| 설정 비교 실험 (`sweep`) | `<--out>/sweep/<모델 이름>/` (`summary.md`, `sweep.db`, `combos/`) |
 | 자동 분할 목록 | `<--out>/datasets/<모델 이름>_<지문>/` (같은 폴더·같은 설정이면 재사용) |
 | 기본 캘리브레이션 사진 | `~/.cache/dxconv/calib/coco128/` |
-| 정밀 모드 프리셋 (`--save-preset`) | `configs/presets/<모델 이름>.yaml` (git 제외, 이후 `convert --model <이름>`에 자동 적용) |
+| `sweep --save-preset` 프리셋 | `configs/presets/<모델 이름>.yaml` (git 제외, 이후 `convert --model <이름>`에 자동 적용) |
 
 `<모델 이름>`은 `--model`로 정하고, 생략하면 pt 파일 이름 (`fire.pt` → `fire`)
 
@@ -170,7 +178,9 @@ export DXCONV_CACHE_DIR=/data/dxconv_cache
 |---|---|---|
 | `원격 장비 설정이 없습니다` | `configs/remote.yaml` 없음 | `cp configs/remote.example.yaml configs/remote.yaml` 후 수정 |
 | `remote.yaml 에 'xxx' 호스트가 없습니다` | `--remote` 이름과 yaml의 장비 이름이 다름 | yaml의 `hosts:` 아래 이름 확인 |
-| SSH 접속 실패 / `Permission denied (publickey)` | 키 미등록 또는 `key_filename`이 `.pub` 파일 | `ssh-copy-id` 다시, `key_filename`은 `.pub` 없는 개인 키 |
+| `장비 접속 실패` + `Operation timed out` | `port` 미입력·오류, 주소 오류, 다른 네트워크 | `remote.yaml`의 `port`, `hostname` 확인, 장비와 같은 네트워크인지 확인 |
+| `장비 접속 실패` + `Permission denied (publickey)` | 이 PC의 키가 장비에 미등록, 또는 `key_filename`이 `.pub` 파일 | `ssh-copy-id -p <port> <username>@<hostname>`, `key_filename`은 지우거나 `.pub` 없는 개인 키 |
+| `장비 접속 실패` + `Host key verification failed` | 처음 접속하는 장비 | 일반 터미널에서 `ssh -p <port> <username>@<hostname>`로 한 번 접속해 `yes` |
 | `dx_engine 이 있는 python 을 찾지 못했습니다` | DX-RT python이 표준 위치에 없음 | 장비에서 경로를 찾아 `python:`에 적기 |
 | `DX-RT(dxrt-cli)를 찾지 못했습니다` | SSH 접속 시 PATH에 DX-RT가 없음 | 장비에서 `dxrt-cli` 위치를 찾아 `dxrt_bin:`에 폴더 적기 |
 | NPU mAP가 거의 0 | 라벨 클래스 번호가 모델과 다름 | 1절 클래스 번호 확인 |

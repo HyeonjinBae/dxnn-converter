@@ -1,4 +1,4 @@
-"""정밀 모드 (sweep): 탐색 공간(configs/sweep/*.yaml)의 단계를 차례로 컴파일·평가해 선택.
+"""설정 비교 실험 (sweep): 탐색 공간(configs/sweep/*.yaml)의 단계를 차례로 컴파일·평가해 선택.
 
 기본 공간 (default_space.yaml): B 단계만
 - compile.calibration_method × compile.calib_repeat (사진 묶음, 캘리브레이션 풀에서 추출)
@@ -30,7 +30,6 @@ from rich.console import Console
 from rich.markup import escape
 
 from dxconv import DxconvError
-from dxconv.compile.compiler import docker_image_for
 from dxconv.config import ConfigError, RunCfg, deep_merge, find_config_dir, merge_layers
 from dxconv.dataset import Dataset, fit_calibration_num
 from dxconv.datasplit import resolve_dataset_input
@@ -422,7 +421,6 @@ def run_sweep(
                     calib_sig = {"error": calib_error}
                 comp = cfg.compile.model_dump(mode="json")
                 comp.pop("calib_repeat", None)  # 사진 목록은 calib 서명에 들어 있음
-                comp["docker_image"] = docker_image_for(cfg)  # "dxcom:{version}" → 실제 이미지 (기존 캐시와 같은 키)
                 if str(cfg.compile.dxcom_version).startswith("2.4"):
                     comp["runner"] = "python_api"  # 2.4: CLI 는 캘리브레이션 설정을 무시
                 key = cache_key({"export": cfg.export.model_dump(mode="json"),

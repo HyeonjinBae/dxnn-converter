@@ -4,7 +4,7 @@ dxcom:
   "2.5.0": { dxnn_format: 9, min_dxrt: "3.5.0" }
   "2.4.1": { dxnn_format: 8, min_dxrt: "3.1.0" }   # 2.4.1-rc.1 포함 (기존 실험, parse_model 로 v8 확인)
   "2.2.0-rc.2": { dxnn_format: 8, min_dxrt: "3.1.0" }  # 업체 RELEASE 모델 parse_model: v8
-# --dxnn-format 으로 고를 때 쓰는 대표 DX-COM 버전 (docker 이미지 dxcom:<버전>)
+# --dxnn-format 으로 고를 때 쓰는 대표 DX-COM 버전
 formats:
   9: "2.5.0"
   8: "2.4.1"

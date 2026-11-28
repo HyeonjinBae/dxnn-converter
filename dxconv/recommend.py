@@ -1,7 +1,7 @@
 """추천 설정 (configs/recommend.yaml): dxnn 포맷별로 한 번에 컴파일할 값.
 
 - `dxconv convert` 는 이 값으로 한 번만 컴파일한다 (추천 모드). 병합 순서는 config.merge_layers 참고.
-- `dxconv recommend update <sweep 폴더...>`: sweep(정밀 모드) 선택 결과를 모아 포맷별 추천값을 다시 정한다.
+- `dxconv recommend update <sweep 폴더...>`: sweep 선택 결과를 모아 포맷별 추천값을 다시 정한다.
   키마다 여러 sweep 에서 가장 많이 선택된 값(동률이면 마지막 sweep 값)을 쓰고, 근거(evidence)를 남긴다.
 """
 
@@ -21,7 +21,7 @@ from dxconv.sweep.space import STAGE_ORDER, to_nested
 
 HEADER = """# 추천 설정 (dxnn 포맷별). 실측(sweep + NPU 평가)으로 정한 값.
 # 설정 병합 순서: defaults.yaml < recommend.yaml(목표 포맷) < presets/<model>.yaml < --config < --set < CLI 옵션
-# `dxconv convert` 는 이 값으로 한 번만 컴파일한다 (추천 모드). 더 맞추려면 `dxconv sweep` (정밀 모드).
+# `dxconv convert` 는 이 값으로 한 번만 컴파일한다. `dxconv sweep` (설정 비교 실험) 은 이 값의 재검증용.
 # 갱신: dxconv recommend update <sweep 결과 폴더...>  /  확인: dxconv recommend show
 """
 

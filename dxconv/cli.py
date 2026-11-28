@@ -449,7 +449,7 @@ def cmd_convert(
 
 
 # --------------------------------------------------------------------------- #
-# 기준선 / 정밀 모드 / 추천값 / 데이터셋 / 장비
+# 기준선 / sweep / 추천값 / 데이터셋 / 장비
 # --------------------------------------------------------------------------- #
 @app.command("baseline")
 def cmd_baseline(
@@ -495,7 +495,7 @@ def cmd_baseline(
     _guard(_go)
 
 
-sweep_app = typer.Typer(help="변환 파라미터 단계별 탐색 (A: opset×simplify → B: calibration → C: opt×aggressive)")
+sweep_app = typer.Typer(help="설정 조합 비교 실험 (추천값 재검증용, 기본 사용에는 불필요)")
 app.add_typer(sweep_app, name="sweep")
 
 
@@ -623,7 +623,7 @@ def cmd_recommend_show() -> None:
 def cmd_recommend_update(
     roots: list[Path] = typer.Argument(..., help="sweep 결과 폴더 (예: runs/sweep/my_model)"),
 ) -> None:
-    """sweep(정밀 모드) 선택 결과로 추천 설정을 갱신 (.bak 백업)."""
+    """sweep 선택 결과로 추천 설정을 갱신 (.bak 백업)."""
 
     def _go() -> None:
         from dxconv.recommend import update

@@ -47,7 +47,7 @@ def select_dxcom_version(
     """사용할 DX-COM 버전을 결정한다.
 
     --dxcom-version 지정 > 설정 파일의 compile.dxcom_version (목표 버전) > 탐지된 버전 중 최신.
-    여러 버전(예: docker 이미지 dxcom:2.5.0, dxcom:2.4.1)이 있을 수 있으므로 설정의 목표 버전을 우선한다.
+    여러 버전(예: pip 2.5.0, PATH 의 2.4.1)이 있을 수 있으므로 설정의 목표 버전을 우선한다.
     """
     if requested:
         return requested, "cli"

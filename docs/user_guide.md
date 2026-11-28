@@ -10,8 +10,7 @@ Ultralytics YOLO 학습 결과(`.pt`) → DEEPX NPU 모델(`.dxnn`) 변환
 model.pt ──(export)──▶ model.onnx ──(compile, DX-COM)──▶ model.dxnn ──▶ NPU 장비
 ```
 
-- 추천 모드 (`convert`): 실측 기반 추천 설정으로 1회 컴파일 + NPU 장비에서 정확도·FPS 확인. 수 분. pt만으로도 동작
-- 정밀 모드 (`sweep`): 캘리브레이션 방식을 사진 묶음 3개씩 컴파일·평가해 평균으로 선택, 프리셋으로 저장. 11~17분
+- 변환 (`convert`): 실측 기반 추천 설정으로 1회 컴파일 + NPU 장비에서 정확도·FPS 확인. 약 2~3분. pt만으로도 동작
 - 버전 맞춤: 배포 장비 DX-RT 버전에 맞는 dxnn 포맷(v9 / v8)으로 생성
 - 설정 확인: 요청 설정이 dxnn에 실제로 들어갔는지 매번 확인, 실행 기록은 `report.json`에 저장
 
@@ -23,9 +22,9 @@ model.pt ──(export)──▶ model.onnx ──(compile, DX-COM)──▶ mod
 
 | 항목 | 설명 |
 |---|---|
-| PC | Linux x86-64 권장. macOS(Apple Silicon 포함)도 docker로 가능 (컴파일 느림) |
+| PC | Linux x86-64 또는 Windows 10/11 + WSL2 Ubuntu (DX-COM이 Linux x86-64 전용) |
 | Python | 3.10 이상 |
-| DX-COM | DEEPX 컴파일러. Linux/WSL2는 `pip install dx-com`, macOS는 docker 이미지 |
+| DX-COM | DEEPX 컴파일러 2.5.0. 설치 스크립트가 `pip install dx-com`으로 설치 |
 | `.pt` 파일 | 변환할 모델 |
 | 이미지 폴더 + YOLO 라벨 폴더 (선택) | 없으면 기본 사진으로 캘리브레이션, 정확도 검증 생략. 있으면 학습 데이터와 비슷한 장면 300장 이상 권장 |
 | NPU 장비 (선택) | 정확도·FPS 검증용. SSH 키 접속 필요 |
@@ -53,21 +52,28 @@ python -c "from ultralytics import YOLO; print(YOLO('model.pt').names)"   # 모�
 ### 3.1 Linux (x86-64)
 
 ```bash
-git clone https://github.com/HyeonjinBae/dxnn-converter.git ~/dxconv && cd ~/dxconv
-./scripts/install_host.sh              # 가상환경(.venv) + dxconv + DX-COM 2.5.0 (pip)
+sudo apt update
+sudo apt install -y python3-venv git libgl1 libglib2.0-0t64
+git clone https://github.com/HyeonjinBae/dxnn-converter.git ~/dxconv
+cd ~/dxconv
+./scripts/install_host.sh
 source .venv/bin/activate
-dxconv env                             # DX-COM 2.5.0 표시되면 성공
+dxconv env
 ```
 
-- Ubuntu 24.04는 `sudo apt install -y python3-venv git libgl1 libglib2.0-0t64` (22.04는 `libglib2.0-0`)
+- `install_host.sh`: 가상환경(.venv) + dxconv + DX-COM 2.5.0 (pip). Linux x86-64가 아니거나 Python이 3.10 미만이면 안내 후 중단
+- `dxconv env`에 DX-COM 2.5.0 (출처 pip)이 보이면 성공
+- Ubuntu 22.04는 `libglib2.0-0t64` 대신 `libglib2.0-0`
+- 기본 python3가 3.10 미만이면 `PYTHON=python3.12 ./scripts/install_host.sh`
 - v8 포맷용 DX-COM 2.4.1이 필요하면 별도 폴더에 `DXCOM_VERSION=2.4.1 ./scripts/install_host.sh` (가상환경 하나에 한 버전)
 
 ### 3.2 Windows (WSL2 Ubuntu)
 
-DX-COM은 Linux 전용이라 Windows에서는 WSL2(Windows 내장 Linux)로 실행. 듀얼부팅 불필요. 자세한 절차·검증 결과·문제 해결: [`windows_wsl2.md`](windows_wsl2.md)
+DX-COM은 Linux 전용이라 Windows에서는 WSL2(Windows 내장 Linux)로 실행. 듀얼부팅 불필요. 자세한 절차·파일 경로·문제 해결: [`windows_wsl2.md`](windows_wsl2.md)
+
+PowerShell(관리자)에서 실행 후 재부팅
 
 ```powershell
-# PowerShell (관리자) - 처음 한 번, 재부팅 후 같은 명령을 한 번 더
 wsl --install -d Ubuntu-24.04
 ```
 
@@ -76,42 +82,39 @@ wsl --install -d Ubuntu-24.04
 - 첫 `wsl --install`은 WSL 기능만 켜고 끝날 수 있음 → 재부팅 후 같은 명령을 한 번 더 실행하면 Ubuntu 설치
 - 작업은 Ubuntu 홈(`cd ~`)에서. 처음 열린 위치가 `/mnt/c/WINDOWS/system32`일 수 있음
 - `dxconv env`의 DX-COM 출처가 `pip`으로 표시되면 정상 (이 PC에서 직접 실행)
-- 확인 환경: Windows 빌드 10.0.26300 + WSL 3.0.5, Ubuntu 24.04.5, Python 3.12.3, Intel Core Ultra 9 285K.
-  코드 수정 없이 `remote.yaml`만으로 변환 → 장비 검증까지 동작 (PT만 1분 39초, 이미지+라벨 2분 58초)
-
-### 3.3 macOS
-
-```bash
-git clone <저장소 주소> dxconv && cd dxconv
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-# Docker Desktop 설치 후
-docker build --platform linux/amd64 -t dxcom:2.5.0 -f docker/Dockerfile.dxcom docker/
-# v8(DX-RT 3.5.0 미만 장비) 필요 시
-docker build --platform linux/amd64 -t dxcom:2.4.1 --build-arg DXCOM_VERSION=2.4.1 -f docker/Dockerfile.dxcom docker/
-dxconv env                            # 출처 docker, 버전 2.5.0 표시되면 성공
-```
-
-- Docker Desktop → Settings → Resources → File sharing에 작업 폴더(`/Users` 등) 포함 필요
-- 디스크 여유 10GB 이상 권장 (디스크가 차면 docker 멈춤)
-- 긴 작업 중 Mac이 잠들면 멈춤 → `caffeinate -i dxconv sweep ...` 형태로 실행
 
 `dxconv env`에서 "DX-RT 없음 / NPU 없음"은 정상 (변환 PC에는 NPU 불필요)
 
-### 3.4 NPU 장비 연결 (검증 시)
+### 3.3 NPU 장비 연결 (검증 시)
+
+1. 장비 설정 파일: `hostname`(장비 IP), `username`(장비 계정), `port`(SSH 포트, 22가 아니면 반드시 수정)
 
 ```bash
-# 1) SSH 키 생성 (없을 때만) → 장비에 등록 (최초 1회 장비 비밀번호 입력)
-ssh-keygen -t ed25519
-ssh-copy-id -p <포트> <사용자>@<주소>
-
-# 2) 장비 설정 파일: hostname, username 만 필수 (나머지는 기본값·자동 탐지)
 cp configs/remote.example.yaml configs/remote.yaml
-
-# 3) 장비 준비, 점검
-dxconv remote setup --host npu1      # 평가 스크립트 복사
-dxconv remote check --host npu1      # DX-RT/드라이버/펌웨어 버전, 읽을 수 있는 dxnn 포맷, 평가 python
+nano configs/remote.yaml
 ```
+
+2. SSH 키 등록 (처음 한 번, 입력을 기다리는 명령이 있으니 한 줄씩)
+
+```bash
+ls ~/.ssh/id_ed25519.pub
+ssh-keygen -t ed25519
+ssh-copy-id -p <포트> <계정>@<장비 IP>
+ssh -p <포트> <계정>@<장비 IP> echo ok
+```
+
+- 첫 줄에서 파일이 보이면 `ssh-keygen`은 건너뜀 (키가 이미 있음)
+- `ssh-copy-id`: `yes` 입력 후 장비 비밀번호 1번. 마지막 줄이 비밀번호 없이 `ok`면 성공
+
+3. 장비 준비, 점검
+
+```bash
+dxconv remote setup --host npu1
+dxconv remote check --host npu1
+```
+
+- `setup`: 평가 스크립트 복사 / `check`: DX-RT·드라이버·펌웨어 버전, 읽을 수 있는 dxnn 포맷, 평가 python
+- 접속 실패 시 원인별 안내 (시간 초과 → 주소·포트·네트워크, `Permission denied` → `ssh-copy-id`, 처음 접속 → 한 번 수동 접속)
 
 - 각 항목에 넣을 값과 찾는 법: [`paths.md`](paths.md) 2절
 - 장비 평가용 python(`dx_engine`, `numpy`, `opencv`)은 자동 탐지. 못 찾으면 `python:`에 경로 지정
@@ -120,7 +123,7 @@ dxconv remote check --host npu1      # DX-RT/드라이버/펌웨어 버전, 읽�
 
 ---
 
-## 4. 추천 모드: 바로 변환
+## 4. 변환 (`convert`)
 
 ### 4.1 pt만 있을 때
 
@@ -185,7 +188,7 @@ dxconv recommend show                               # 현재 추천값과 근거
 | 분할 | 용도 | 기본 비율 | 1000장 기준 |
 |---|---|---|---|
 | 캘리브레이션 | 양자화 범위 계산 | 20% (최대 200), 후보 25/50/100% | 50/100/200 |
-| 튜닝 | 정밀 모드 조합 선택 | 20% (최대 500) | 200 |
+| 튜닝 | 설정 비교 실험(`sweep`)용 | 20% (최대 500) | 200 |
 | 평가 | 최종 보고 (선택에 미사용) | 나머지 | 600 |
 
 ```bash
@@ -198,63 +201,13 @@ dxconv dataset split --images ./data/images --labels ./data/labels    # 분할 �
 
 ---
 
-## 6. 정밀 모드: 모델별 최적 설정 탐색
+## 6. 설정 비교 실험 (`sweep`, 실험용)
 
-```bash
-caffeinate -i dxconv sweep --pt model.pt --images ./data/images --labels ./data/labels --remote npu1 --save-preset
-```
+모델마다 양자화 설정(ema / minmax × 사진 묶음 3개)을 여러 번 변환·평가해 고르는 기능. **기본 사용에는 필요 없음**
 
-기본 탐색: 캘리브레이션 방식만 (모델당 Linux/WSL2 약 11분, Mac 약 17분)
-
-| 탐색 | 내용 | 선택 기준 |
-|---|---|---|
-| 캘리브레이션 방식 | ema / minmax, 각각 사진 묶음 3개 (100장씩 캘리브레이션 풀에서 추출) = 6회 컴파일 | 방식별 튜닝 mAP50-95 **평균** 최대 → 그 방식 중 튜닝 최대 묶음 |
-
-- 같은 설정도 어떤 사진이 뽑히느냐에 따라 0.2~1%p 흔들려서, 1회 측정 대신 3묶음 평균으로 방식을 고름
-- opset, simplify, opt_level, aggressive는 실측상 결과가 같거나(opset 11~21, simplify) 항상 같은 값이 최고(opt 1, aggressive 끔)라 추천값 고정
-- 전체 탐색(A: opset × simplify → B: 방식 × 장수 → C: opt × aggressive, 약 30~35분)이 필요하면 `--space full_space.yaml`
-- 선택 조합을 평가 분할로 다시 측정, `summary.md`에 PT와 함께 기록
-- `--save-preset`: 선택값을 `configs/presets/<model>.yaml`(v8은 `<model>@dxcom2.4.1.yaml`)로 저장, 이후 `convert`에서 사용
-- 결과 표: `<out>/sweep/<model>/summary.md`. 현황 보기: `dxconv sweep status --model <model>`
-- 중간에 멈춰도 같은 명령 재실행 시 이어서 진행. 실패 조합 재시도는 `--retry-failed`
-
-### 6.1 선택 기준 변경
-
-```bash
-dxconv sweep ... --objective "PT 대비 mAP 하락 <= 1%p 중 FPS 최대"   # 기본
-dxconv sweep ... --objective "FPS >= 20*15 중 mAP 최대"               # 20채널 × 카메라당 15 FPS
-dxconv sweep ... --objective "PT 대비 mAP50 하락 <= 2%p, FPS >= 300 중 mAP50 최대"
-```
-
-- `mAP`는 mAP50-95, `mAP50`은 mAP50. 형식이 틀리면 컴파일 전에 오류로 중단
-- 조건을 만족하는 조합이 없으면 하락이 가장 작은 조합을 `[대체 선택]`으로 선택. 끄려면 `--strict-objective`
-
-### 6.2 추천값 갱신
-
-여러 모델의 정밀 모드 결과로 포맷별 추천값 재결정 (키별 최다 선택값)
-
-```bash
-dxconv recommend update <out>/sweep/<model1> <out>/sweep/<model2>
-```
-
-### 6.3 장비 없이 정밀 모드
-
-```bash
-dxconv sweep --pt model.pt --images ... --labels ... --compile-only     # 평가가 필요한 단계에서 멈춤
-# pending_eval.json 의 dxnn 을 장비에서 튜닝 분할로 평가해 map50, map50_95, fps 입력 (0~1 비율)
-dxconv sweep import-eval filled.json --model <model> --baseline-report <baseline report.json>
-dxconv sweep --pt model.pt --compile-only                                # 다음 단계 진행
-```
-
-`import-eval` 입력 예
-
-```json
-{"split": "tuning",
- "pt": {"map50": 0.8964, "map50_95": 0.6249},
- "results": [{"hash": "9ba0d33a3638b8cb", "map50": 0.89, "map50_95": 0.62, "fps": 31.5}]}
-```
-
----
+- 시험 결과: ALVIS Fire·Falldown, COCO YOLO26 n/s/m/l 6개 모델에서 추천값 1회 변환과 차이 0~0.5%p, 추천값이 같거나 좋음 (9절 실측 참고)
+- 남겨 둔 용도: 새 DX-COM 버전이나 새 종류의 모델에서 추천값이 여전히 맞는지 재검증
+- 사용법과 옵션: [`commands.md`](commands.md) 2절
 
 ## 7. PT / ONNX 정확도 재기 (`baseline`)
 
@@ -291,7 +244,7 @@ dxconv baseline --pt model.pt --images ./data/images --labels ./data/labels
 
 | 경고 | 의미 |
 |---|---|
-| `No supported GPU/CUDA environment` | GPU 없이 CPU로 양자화 (macOS, GPU 없는 PC) |
+| `No supported GPU/CUDA environment` | GPU 없이 CPU로 양자화 (GPU 없는 PC, WSL2) |
 | `After surgeon, cosine similarity … below 0.90/0.99` | 후처리(TopK) 부분 그래프 변환 경고. NPU 실측 정확도로 판단 |
 
 ### 8.3 장비 배포
@@ -312,7 +265,7 @@ dxconv baseline --pt model.pt --images ./data/images --labels ./data/labels
 | `aggressive_partitioning` | dxnn·로그에 값이 남지 않음 → 명령행 플래그로만 적용 여부 확인 |
 | Q-PRO (`--use_q_pro`) | 미지원. GPU 없이 CPU로 6시간 이상, 시험한 모델에서 정확도 개선 없음 (−0.15 → −0.64%p) |
 | `--quant_diagnosis` | 미지원. 켜면 ema 캘리브 결과가 일반 컴파일과 달라지고(시험 모델 −1.01 → −1.76%p), 리포트의 cosine/QSNR은 모델 간 mAP 하락과 맞지 않음 |
-| dxnn의 컴파일러 버전 표기 | `pip install dx-com==2.5.0`(docker 이미지 포함)으로 만든 dxnn에는 `2.5.0-rc.1`로 기록됨. dxconv는 2.5.0으로 취급 (v9 포맷 동일) |
+| dxnn의 컴파일러 버전 표기 | `pip install dx-com==2.5.0`으로 만든 dxnn에는 `2.5.0-rc.1`로 기록됨. dxconv는 2.5.0으로 취급 (v9 포맷 동일) |
 | `--checkpoint` + `--recalibration_method` | 2.5.0 CLI에서 방식 변경이 적용되지 않음 (결과·dxnn 기록 모두 원래 방식) |
 | 장비 접속 | SSH 키 인증만 지원 |
 
@@ -327,7 +280,8 @@ dxconv baseline --pt model.pt --images ./data/images --labels ./data/labels
 | 캘리브 방식 | 자기 데이터: minmax·50이 ema·100보다 0.4~0.5%p 좋음 / 일반 사진: ema·100이 좋음 |
 | 튀는 사진 20% 섞기 | 최종 결과 차이 0.05~0.16%p |
 | 라벨 없는 검증 (PT 예측을 정답으로) | 붕괴(단색 캘리브)는 잡지만 0.5%p 수준 차이는 구분 못 함 → 미사용 |
-| 캘리브 반복 | 같은 설정이라도 뽑힌 이미지에 따라 0.2~0.6%p 흔들림 → 1회 측정 1위는 신뢰 낮음 |
+| 캘리브 반복 | 같은 설정이라도 뽑힌 이미지에 따라 0.2~0.8%p 흔들림 → 1회 측정 1위는 신뢰 낮음 |
+| 설정 비교 실험(`sweep`) vs 추천값 | 6개 모델(Fire, Falldown, COCO YOLO26 n/s/m/l)에서 차이 0~0.5%p, 추천값이 같거나 좋음 → 기본 흐름에서 제외 |
 | 캘리브 결정성 | 같은 onnx·config·이미지면 결과 동일 |
 | 입력 해상도 (640 학습 모델) | 480: 전체 −1%p 이내, FPS 1.7배 / 416: −2%p, 2.2배 / 320: −7%p, 3.1배 |
 
@@ -339,13 +293,12 @@ dxconv baseline --pt model.pt --images ./data/images --labels ./data/labels
 |---|---|
 | `캘리브레이션 입력이 없습니다` | `--images`(권장) 또는 `--calib-dir` 지정 |
 | 캘리브레이션 이미지 수 부족 | 이미지 수 ≥ `calibration_num` 필요. `--calib-num`으로 줄이거나 이미지 추가 |
-| `DX-COM 실행 실패` / dxcom 없음 | `dxconv env`로 확인. Linux/WSL2는 `pip install dx-com==2.5.0`, macOS는 docker 이미지 빌드 (3절) |
-| macOS에서 컴파일 중 파일을 못 찾음 | Docker Desktop File sharing에 작업 폴더 추가 |
+| `DX-COM 실행 실패` / dxcom 없음 | `dxconv env`로 확인. 가상환경 활성화(`source .venv/bin/activate`) 확인, 없으면 `pip install dx-com==2.5.0` |
 | `장비 ... 는 dxnn v9 을 읽을 수 없습니다` | 장비 DX-RT 3.5.0 미만. `--remote`로 자동 선택하거나 `--dxnn-format 8` |
 | NPU mAP가 거의 0 | 라벨 클래스 번호가 모델과 다름 (2절) |
 | `[dxnn 설정 불일치]` 경고 | 해당 dxnn 사용 금지. `report.json`의 `dxnn_settings.mismatches` 확인 |
-| `--objective 를 해석할 수 없습니다` | `--objective` 문구 형식 확인 (6.1) |
-| SSH 접속 실패 | `ssh -p <포트> <사용자>@<주소>`가 비밀번호 없이 되는지 확인 (`ssh-copy-id`) |
+| `설치된 DX-COM 버전이 목표 버전(...)과 다릅니다` | 장비가 v8(DX-RT 3.5.0 미만)이면 별도 폴더에 `DXCOM_VERSION=2.4.1 ./scripts/install_host.sh` |
+| `장비 접속 실패` | 출력된 원인대로 조치 (포트·주소·키 등록). `ssh -p <포트> <계정>@<장비 IP> echo ok`가 비밀번호 없이 되는지 확인 |
 | 원인 추가 확인 | `dxconv --debug convert ...`, run 폴더 `compile.log`, `report.json` |
 
 문제 보고 시 **run 폴더의 `report.json`과 `compile.log`** 함께 전달
@@ -364,4 +317,4 @@ dxconv baseline --pt model.pt --images ./data/images --labels ./data/labels
 | aggressive partitioning | NPU에 최대한 많은 연산을 올리는 분할 옵션 |
 | letterbox | 비율 유지 리사이즈 후 남는 영역을 회색(114)으로 채우는 전처리. 학습과 같아야 함 |
 | 튜닝 / 평가 분할 | 튜닝: 조합 선택용. 평가: 최종 보고용 (선택에 미사용) |
-| 추천값 / 프리셋 | 추천값: 포맷별 공통 설정. 프리셋: 정밀 모드가 찾은 모델별 설정 |
+| 추천값 / 프리셋 | 추천값: 포맷별 공통 설정. 프리셋: 모델별 설정 (선택, `configs/presets/`) |

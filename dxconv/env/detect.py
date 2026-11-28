@@ -31,7 +31,7 @@ _SUBPROCESS_TIMEOUT = 15
 class EnvInfo:
     """탐지 결과.
 
-    dxcom: [{source, version, path}] (source: pip | path | docker)
+    dxcom: [{source, version, path}] (source: pip | path)
     dxrt:  {version, driver, firmware, raw} 또는 None (NPU 없음)
     """
 
@@ -100,26 +100,6 @@ def detect_dxcom_path() -> list[dict[str, Any]]:
     return found
 
 
-def detect_dxcom_docker() -> list[dict[str, Any]]:
-    if shutil.which("docker") is None:
-        return []
-    proc = _run(["docker", "image", "ls", "--format", "{{.Repository}}:{{.Tag}}"])
-    if proc is None or proc.returncode != 0:
-        return []
-    found: list[dict[str, Any]] = []
-    for line in proc.stdout.splitlines():
-        ref = line.strip()
-        if not ref:
-            continue
-        repo, _, tag = ref.rpartition(":")
-        comps = repo.lower().split("/")
-        # 저장소 경로 구성요소 중 'dx'로 시작하거나 'deepx'를 포함하는 이미지만
-        if not any(c.startswith("dx") or "deepx" in c for c in comps):
-            continue
-        found.append({"source": "docker", "version": parse_version(tag), "path": ref})
-    return found
-
-
 def parse_dxrt_status(text: str) -> dict[str, Any]:
     """dxrt-cli --status 출력에서 버전 정보를 뽑는다.
 
@@ -163,7 +143,7 @@ def detect_dxrt() -> tuple[dict[str, Any] | None, bool]:
 def detect_env() -> EnvInfo:
     """DX-COM / DX-RT 를 모든 방법으로 탐지한다. 예외를 던지지 않는다."""
     env = EnvInfo()
-    for fn in (detect_dxcom_pip, detect_dxcom_path, detect_dxcom_docker):
+    for fn in (detect_dxcom_pip, detect_dxcom_path):
         try:
             env.dxcom.extend(fn())
         except Exception as e:  # noqa: BLE001 - 탐지는 절대 실패하지 않음
@@ -174,8 +154,8 @@ def detect_env() -> EnvInfo:
         env.notes.append(f"detect_dxrt 실패: {e}")
     if not env.dxcom:
         env.notes.append(
-            "DX-COM 미설치: Linux x86-64 / WSL2 는 `pip install dx-com==2.5.0`, "
-            "macOS 는 docker 이미지(dxcom:2.5.0)를 만드세요 (README 설치)."
+            "DX-COM 미설치: `./scripts/install_host.sh` 또는 `pip install dx-com==2.5.0` "
+            "(Linux x86-64 / Windows WSL2 전용, README 설치)."
         )
     if env.dxrt is None:
         env.notes.append("DX-RT 없음: 이 PC에는 NPU 런타임이 없습니다 (평가는 원격 장비 사용).")

@@ -21,7 +21,6 @@ compile:
   calib_sampling: stratified   # stratified: calib-dir 하위 폴더(클래스) 비율대로 | random
   # 이미지 입력(--images / --calib-dir / --dataset)이 없을 때 받아 쓰는 기본 캘리브레이션 사진 (일반 사진 128장, 약 7MB)
   default_calib_url: "https://github.com/ultralytics/assets/releases/download/v0.0.0/coco128.zip"
-  docker_image: "dxcom:{version}"  # 로컬 dxcom 이 없거나 버전이 다르면 이 이미지 ({version}=dxcom_version, null: docker 미사용)
   export_html: false           # true: dxcom --export_html, 결과 HTML 을 run 폴더에 복사
   preprocess:                  # Ultralytics 학습 전처리와 반드시 일치
     letterbox_mode: host       # host: Ultralytics LetterBox 로 미리 처리 | dxcom | none

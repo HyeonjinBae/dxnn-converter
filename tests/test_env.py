@@ -15,7 +15,7 @@ def test_parse_version():
 
 def test_select_version_priority():
     env = EnvInfo(dxcom=[{"source": "pip", "version": "2.4.1-rc.1", "path": None},
-                         {"source": "docker", "version": "2.5.0", "path": "x"}])
+                         {"source": "path", "version": "2.5.0", "path": "x"}])
     assert select_dxcom_version("2.2.0", env, "2.5.0") == ("2.2.0", "cli")
     assert select_dxcom_version(None, env, "2.2.0") == ("2.2.0", "config")  # 목표 버전 우선
     assert select_dxcom_version(None, env, None) == ("2.5.0", "detected")

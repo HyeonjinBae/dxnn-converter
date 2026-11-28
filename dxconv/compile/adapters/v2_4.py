@@ -9,7 +9,6 @@ config.json 키·CLI 플래그는 2.5 와 같다 (dxcom --help 2.4.1 비교). �
   요청대로 기록된다 (2026-11-25, minmax/50 확인).
 
 그래서 2.4 는 CLI 대신 `python -c "import dx_com; dx_com.compile(...)"` 명령으로 컴파일한다.
-(docker 실행 시에도 같은 명령을 컨테이너 안에서 실행한다.)
 """
 
 from __future__ import annotations
@@ -44,11 +43,11 @@ class DxcomV24Adapter(DxcomV25Adapter):
         }
         args = ", ".join(f"{k}={json.dumps(v) if not isinstance(v, bool) else v}" for k, v in kw.items())
         script = f"import dx_com; {API_MARK}{args})"
-        # 로컬 실행: dx_com 이 설치된 python. docker: 컨테이너의 python (compiler.docker_command)
+        # dx_com 2.4 가 설치된 python 으로 실행
         return [executable or "python3", "-c", script]
 
     def find_executable(self) -> str:
-        """로컬에 dx_com 2.4 가 import 되는 python 이 있을 때만 로컬 실행 (없으면 docker)."""
+        """dx_com 2.4 가 import 되는 python 을 찾는다."""
         import shutil
         import subprocess
 
@@ -62,7 +61,8 @@ class DxcomV24Adapter(DxcomV25Adapter):
                                capture_output=True, text=True, timeout=60)
             if p.returncode == 0 and p.stdout.strip().startswith(self.series):
                 return path
-        raise DxconvError(f"로컬에 dx_com {self.series}.x 가 설치된 python 이 없습니다 (docker 사용).")
+        raise DxconvError(f"dx_com {self.series}.x 가 설치된 python 이 없습니다 "
+                          "(DXCOM_VERSION=2.4.1 ./scripts/install_host.sh).")
 
 
 def aggressive_in_command(cmd: list[str], flag: str) -> bool:

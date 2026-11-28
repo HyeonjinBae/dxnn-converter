@@ -1,4 +1,4 @@
-# sweep(정밀 모드) 기본 탐색 공간
+# sweep(설정 비교 실험) 기본 탐색 공간
 #
 # 실측 결과 (DX-M1, YOLO26 n/s/m/l):
 #   - opset 11~21, simplify: dxnn NPU 데이터가 바이트 단위로 같음 → 추천값(17, true) 고정

@@ -1,7 +1,7 @@
 """DX-COM 2.5.x 어댑터.
 
 CLI 플래그는 `dxcom --help` (DX-COM 2.5.0), config 키·로그 형식은 dxcom:2.5.0 / pip dx-com 2.5.0 실측으로 확인.
-기본 경로(CLI + host letterbox)는 macOS(docker)와 Linux/WSL2(pip)에서 검증됨.
+기본 경로(CLI + host letterbox)는 Linux/WSL2(pip)에서 검증됨.
 dxcom 쪽 letterbox(letterbox_mode: dxcom)와 Python API(--use-api) 경로는 미검증 (아래 주석).
 """
 
@@ -62,7 +62,7 @@ PRE_EXPAND_DIM = "expandDim"
 
 # --------------------------------------------------------------------------- #
 # 로그 파싱 패턴
-# 실제 DX-COM 2.5.0 로그(docker dxcom:2.5.0)에서 확인한 줄:
+# 실제 DX-COM 2.5.0 로그에서 확인한 줄:
 #   "[INFO] - Final result: 1 NPU groups, 0 CPU groups"
 # 아래 _RE_NPU/_RE_CPU 는 위 줄이 없을 때의 예비 패턴 (미검증).
 # --------------------------------------------------------------------------- #

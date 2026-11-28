@@ -1,6 +1,6 @@
 # 추천 설정 (dxnn 포맷별). 실측(sweep + NPU 평가)으로 정한 값.
 # 설정 병합 순서: defaults.yaml < recommend.yaml(목표 포맷) < presets/<model>.yaml < --config < --set < CLI 옵션
-# `dxconv convert` 는 이 값으로 한 번만 컴파일한다 (추천 모드). 더 맞추려면 `dxconv sweep` (정밀 모드).
+# `dxconv convert` 는 이 값으로 한 번만 컴파일한다. `dxconv sweep` (설정 비교 실험) 은 이 값의 재검증용.
 # settings_no_data: 이미지 입력 없이 기본 캘리브레이션 사진(일반 사진)을 쓸 때 settings 위에 얹는 값
 # 갱신: dxconv recommend update <sweep 결과 폴더...>  /  확인: dxconv recommend show
 formats:
@@ -28,7 +28,8 @@ formats:
     - '자기 데이터 캘리브(2개 모델, 이미지만 바꿔 3~4회 반복 평균): minmax·50 이 ema·100 보다 0.4~0.5%p 좋음 (Falldown −0.25 vs −0.72, Fire −1.37 vs −1.77) → settings'
     - '일반 사진(coco128) 캘리브: ema·100 은 자기 데이터와 같음 (Falldown −0.72 vs −0.72, Fire −1.76 vs −1.77), minmax·50 은 0.2~0.6%p 손해 → settings_no_data'
     - '튀는 이미지 20% 섞은 캘리브: 최종 평가 차이 0.05~0.16%p (영향 작음)'
-    - '2026-11-25 YOLO26s 탐지 모델(2클래스), DX-M1: 정밀 모드 선택 ema/100, opt1, agg off / 평가 600장 PT 대비 mAP50-95 -1.01%p, 203.4 FPS. 추천 모드도 같은 결과'
+    - '설정 비교(sweep: ema/minmax × 사진 묶음 3개) vs 추천값 1회 변환: Fire·Falldown + COCO YOLO26 n/s/m/l 6개 모델에서 차이 0~0.5%p, 추천값이 같거나 좋음 (YOLO26 n −0.62/−1.11, s −1.21/−1.54, m −0.53/−0.70, l −0.87/−0.89, 추천/sweep, 평가 600장)'
+    - '2026-11-25 YOLO26s 탐지 모델(2클래스), DX-M1: sweep 선택 ema/100, opt1, agg off / 평가 600장 PT 대비 mAP50-95 -1.01%p, 203.4 FPS'
   8:
     settings:
       export:
@@ -41,4 +42,4 @@ formats:
         calibration_num: 100
     evidence:
     - 'opset/simplify/opt_level/aggressive 경향은 v9 와 같음 (opt1·agg off 205.5 FPS)'
-    - '2026-11-25 YOLO26s 탐지 모델(2클래스), DX-M1: 정밀 모드 선택 minmax/100 / 평가 600장 PT 대비 mAP50-95 -1.53%p, 205.5 FPS. 캘리브레이션 차이 0.2~0.6%p'
+    - '2026-11-25 YOLO26s 탐지 모델(2클래스), DX-M1: sweep 선택 minmax/100 / 평가 600장 PT 대비 mAP50-95 -1.53%p, 205.5 FPS. 캘리브레이션 차이 0.2~0.6%p'

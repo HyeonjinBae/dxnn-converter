@@ -136,12 +136,45 @@ class RemoteClient:
         except subprocess.TimeoutExpired as e:
             raise DxconvError(f"[{self.name}] 원격 명령 타임아웃: {script[:80]}") from e
         out = p.stdout.decode("utf-8", "replace")
+        if p.returncode == 255:  # ssh 자체 실패 (접속·인증) → 원인별 안내
+            hint = self.ssh_hint(p.stderr.decode("utf-8", "replace"))
+            if hint:
+                raise DxconvError(hint)
         if check and p.returncode != 0:
             err = p.stderr.decode("utf-8", "replace").strip().splitlines()
             err = [ln for ln in err if "unable to resolve host" not in ln][-8:]
             raise DxconvError(f"[{self.name}] 원격 명령 실패 (코드 {p.returncode}): {script[:120]}\n"
                               + "\n".join(err))
         return out
+
+    def ssh_hint(self, stderr: str) -> str | None:
+        """ssh 실패 메시지 → 원인과 해결 방법 (ssh 오류가 아니면 None: 장비 명령 자체의 종료 코드 255)."""
+        c = self.cfg
+        login = f"ssh -p {c.port} {self.target}"
+        low = stderr.lower()
+        if "permission denied" in low:
+            why = ("SSH 키가 장비에 등록되지 않았습니다. 일반 터미널에서 한 번 실행하세요 (장비 비밀번호 입력): "
+                   f"ssh-copy-id -p {c.port} {self.target}")
+        elif "timed out" in low or "no route to host" in low or "network is unreachable" in low:
+            why = (f"장비에 연결할 수 없습니다 (시간 초과). remote.yaml 의 hostname({c.hostname})과 "
+                   f"port({c.port}, SSH 포트가 22 가 아니면 반드시 적어야 함), "
+                   "장비 전원, 같은 네트워크인지 확인하세요.")
+        elif "connection refused" in low:
+            why = f"장비가 포트 {c.port} 에서 SSH 접속을 거부했습니다. remote.yaml 의 port 를 확인하세요."
+        elif "could not resolve hostname" in low or "name or service not known" in low:
+            why = f"장비 주소를 찾을 수 없습니다. remote.yaml 의 hostname({c.hostname})을 확인하세요."
+        elif "host key verification failed" in low:
+            why = f"처음 접속하는 장비입니다. 일반 터미널에서 `{login}` 로 한 번 접속해 yes 를 입력하세요."
+        elif "remote host identification has changed" in low:
+            why = (f"장비의 SSH 키가 바뀌었습니다 (장비 재설치 등). `ssh-keygen -R \"[{c.hostname}]:{c.port}\"` "
+                   "로 이전 기록을 지운 뒤 다시 접속하세요.")
+        elif low.lstrip().startswith("ssh:") or "kex_exchange" in low or "connection closed" in low:
+            why = "SSH 접속에 실패했습니다."
+        else:
+            return None
+        tail = "\n".join(stderr.strip().splitlines()[-3:])
+        return (f"[{self.name}] 장비 접속 실패 ({self.target}:{c.port})\n  원인: {why}\n"
+                f"  확인: `{login} echo ok` 가 비밀번호 없이 ok 를 출력해야 합니다.\n  ssh 출력: {tail}")
 
     def put(self, local: Path, remote: str) -> None:
         cmd = ["scp", "-q", "-P", str(self.cfg.port), "-o", "BatchMode=yes"]
@@ -184,6 +217,7 @@ class RemoteClient:
 
     # ------------------------------------------------------------ 점검
     def check(self) -> dict[str, Any]:
+        self.run("true", timeout=60)  # 접속 실패면 여기서 원인 안내 후 중단
         try:
             py_path = self.python
         except DxconvError as e:  # 자동 탐지 실패 → 점검 결과의 problems 로 보고

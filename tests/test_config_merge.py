@@ -100,14 +100,8 @@ def test_calib_method_case_insensitive(config_dir: Path, raw: str, expected: str
     assert cfg.compile.calibration_method == expected
 
 
-def test_defaults_docker_image(config_dir: Path):
+def test_defaults_compile(config_dir: Path):
     cfg = resolve_config("fire", config_dir=config_dir)
-    assert cfg.compile.docker_image == "dxcom:{version}"
-    from dxconv.compile.compiler import docker_image_for
-
-    assert docker_image_for(cfg) == "dxcom:2.5.0"
-    cfg8 = resolve_config("fire", set_items=["compile.dxcom_version=2.4.1"], config_dir=config_dir)
-    assert docker_image_for(cfg8) == "dxcom:2.4.1"
     assert cfg.compile.export_html is False
     assert cfg.compile.calib_sampling == "stratified"
 

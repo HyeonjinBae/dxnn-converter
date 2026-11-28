@@ -6,8 +6,14 @@ runs/
 # 원격 장비 접속 정보 / 데이터셋 경로 (개인 설정)
 configs/remote.yaml
 configs/datasets/*.local.yaml
-# 정밀 모드 --save-preset 결과 (모델·데이터마다 다름, 각자 PC 에만)
+# sweep --save-preset 결과 (모델·데이터마다 다름, 각자 PC 에만)
 configs/presets/*.yaml
+# SSH 키 파일 (실수로 저장소 폴더에 만들어진 경우 대비, 절대 올리지 않음)
+id_rsa*
+id_ed25519*
+id_ecdsa*
+*.pem
+*.key
 
 # 기존 실험 자료 사본 (읽기 전용, 저장소에 포함하지 않음)
 /01_Fire/

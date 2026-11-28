@@ -221,8 +221,6 @@ def compile_stage(
                              local_version_mismatch=mismatch)
     report.set("compile_summary", result.log_summary)
     report.set("dxcom_runner", result.runner)
-    if result.runner.startswith("docker:"):
-        report.set("dxcom_docker_command", result.command)
     if cfg.compile.export_html:
         if result.html_reports:
             report.section("outputs")["html_reports"] = [str(p) for p in result.html_reports]

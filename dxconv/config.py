@@ -219,14 +219,12 @@ class CompileCfg(_Strict):
     calibration_num: int = Field(100, gt=0)
     calib_seed: int = 0
     # 데이터셋 캘리브레이션 사진 묶음 번호: 0 = 분할 목록 그대로, 1 이상 = 캘리브레이션 풀에서 이 번호를 시드로
-    # calibration_num 장을 무작위 추출 (정밀 모드 B 단계가 방식별로 여러 묶음을 평균 낼 때 사용)
+    # calibration_num 장을 무작위 추출 (sweep 이 방식별로 여러 묶음을 평균 낼 때 사용)
     calib_repeat: int = Field(0, ge=0)
     # stratified: calib-dir 바로 아래 하위 폴더(클래스) 비율대로 샘플링, random: 전체에서 무작위
     calib_sampling: Literal["random", "stratified"] = "stratified"
     # 이미지 입력이 없을 때 받아 쓸 기본 캘리브레이션 사진 묶음 (zip, 안의 jpg/png 전부 사용)
     default_calib_url: str = "https://github.com/ultralytics/assets/releases/download/v0.0.0/coco128.zip"
-    # 로컬 dxcom 실행 파일이 없을 때 컴파일에 쓸 docker 이미지 (null 이면 docker 사용 안 함)
-    docker_image: str | None = None
     # dxcom --export_html: 컴파일 요약 HTML 을 만들어 run 폴더에 복사
     export_html: bool = False
     preprocess: PreprocessCfg = Field(default_factory=PreprocessCfg)
